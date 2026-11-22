@@ -1,0 +1,40 @@
+---
+# Start MariaDB and enable it at boot.
+- name: Start and enable MariaDB
+  ansible.builtin.systemd_service:
+    name: "{{ mysql_service }}"
+    state: started
+    enabled: true
+
+# Start PHP-FPM and enable it at boot.
+- name: Start and enable PHP-FPM
+  ansible.builtin.systemd_service:
+    name: "{{ php_fpm_service }}"
+    state: started
+    enabled: true
+
+# Ensure the website document root exists with appropriate ownership.
+- name: Create website document root
+  ansible.builtin.file:
+    path: "{{ web_root }}"
+    state: directory
+    owner: "{{ apache_user }}"
+    group: "{{ apache_group }}"
+    mode: "0755"
+
+# Deploy the PHP test page from the Jinja2 template.
+- name: Deploy PHP test page
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: "{{ web_root }}/index.php"
+    owner: "{{ apache_user }}"
+    group: "{{ apache_group }}"
+    mode: "0644"
+  notify: Restart Apache
+
+# Start Apache only after port cleanup and application deployment.
+- name: Start and enable Apache
+  ansible.builtin.systemd_service:
+    name: "{{ apache_service }}"
+    state: started
+    enabled: true

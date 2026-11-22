@@ -1,0 +1,19 @@
+---
+# Update installed packages to the latest versions in enabled repositories.
+# For production, consider pinning package versions instead.
+- name: Update Amazon Linux packages
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+
+# Install Apache, MariaDB and utilities used by the port-check tasks.
+- name: Install Apache, MariaDB and supporting utilities
+  ansible.builtin.dnf:
+    name: "{{ required_packages }}"
+    state: present
+
+# Install PHP and its command-line, FPM and MariaDB/MySQL extensions.
+- name: Install PHP packages
+  ansible.builtin.dnf:
+    name: "{{ all_php_packages }}"
+    state: present

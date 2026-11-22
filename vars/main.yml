@@ -1,0 +1,14 @@
+---
+# Packages needed for the deployment and process inspection
+required_packages:
+  - "{{ apache_package }}"
+  - "{{ mysql_package }}"
+  - iproute
+  - grep
+  - coreutils
+
+# Reuse the PHP package list defined in defaults
+all_php_packages: "{{ php_packages }}"
+
+# Protect the desired Apache service from port-cleanup actions
+protected_service: "{{ apache_service }}"

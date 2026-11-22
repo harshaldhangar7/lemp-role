@@ -1,0 +1,12 @@
+---
+# Check port 80 and stop conflicting systemd services before installation
+- name: Check and free Apache port
+  ansible.builtin.import_tasks: port_check.yml
+
+# Install Apache, MariaDB and PHP packages
+- name: Install LAMP packages
+  ansible.builtin.import_tasks: install.yml
+
+# Configure the website and start required services
+- name: Configure LAMP services
+  ansible.builtin.import_tasks: configure.yml

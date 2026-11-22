@@ -1,0 +1,6 @@
+---
+# Run this handler only when a task notifies it (for example, template change).
+- name: Restart Apache
+  ansible.builtin.systemd_service:
+    name: "{{ apache_service }}"
+    state: restarted

@@ -1,0 +1,35 @@
+---
+# Apache package name on Amazon Linux 2023
+apache_package: httpd
+
+# Apache systemd service name
+apache_service: httpd
+
+# TCP port Apache should use
+apache_port: 80
+
+# MariaDB server package and service
+mysql_package: mariadb105-server
+mysql_service: mariadb
+
+# PHP packages available from the enabled AL2023 repositories
+php_packages:
+  - php
+  - php-cli
+  - php-common
+  - php-fpm
+  - php-mysqlnd
+
+# PHP-FPM service name
+php_fpm_service: php-fpm
+
+# Website document root
+web_root: /var/www/html
+
+# Website content
+website_title: "My LAMP Application"
+website_message: "LAMP Stack Installed Successfully!"
+
+# Default Apache runtime account on Amazon Linux
+apache_user: apache
+apache_group: apache

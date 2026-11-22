@@ -1,0 +1,84 @@
+---
+# Find process IDs listening on the configured TCP port
+- name: Detect processes using the Apache port
+  ansible.builtin.shell: |
+    set -o pipefail
+    ss -H -ltnp 'sport = :{{ apache_port }}' |
+      grep -oE 'pid=[0-9]+' |
+      cut -d= -f2 |
+      sort -u
+  args:
+    executable: /bin/bash
+  register: port_listener_pids
+  changed_when: false
+  failed_when: false
+
+# Resolve each listener PID to its systemd service, then stop and disable
+# conflicting services. Apache itself is deliberately protected.
+- name: Stop and disable conflicting systemd services
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    # Process each PID discovered by the previous task.
+    for pid in {{ port_listener_pids.stdout | default('') }}; do
+      # Ignore a process that exited after the port scan.
+      if [ ! -r "/proc/${pid}/cgroup" ]; then
+        continue
+      fi
+
+      # Extract a systemd service unit from the process cgroup.
+      unit=$(grep -oE '[^/]+\.service' "/proc/${pid}/cgroup" | tail -n 1 || true)
+
+      if [ -n "${unit}" ]; then
+        # Never stop or disable Apache, which is the desired web server.
+        if [ "${unit}" = "{{ protected_service }}.service" ]; then
+          echo "Keeping protected service ${unit}"
+          continue
+        fi
+
+        # Stop the conflicting service now and disable it at boot.
+        echo "Stopping and disabling conflicting service ${unit}"
+        systemctl disable --now "${unit}"
+      else
+        # The listener is not associated with a systemd service.
+        # Terminate it gracefully; systemd cannot disable an unmanaged PID.
+        echo "Sending SIGTERM to unmanaged listener PID ${pid}"
+        kill -TERM "${pid}" || true
+      fi
+    done
+  args:
+    executable: /bin/bash
+  when: port_listener_pids.stdout | trim | length > 0
+  register: port_cleanup
+  changed_when: true
+
+# Confirm that port 80 is free or is used only by Apache
+- name: Verify Apache port is available
+  ansible.builtin.shell: |
+    set -o pipefail
+    pids=$(ss -H -ltnp 'sport = :{{ apache_port }}' |
+           grep -oE 'pid=[0-9]+' |
+           cut -d= -f2 |
+           sort -u || true)
+
+    for pid in ${pids}; do
+      if [ ! -r "/proc/${pid}/cgroup" ]; then
+        echo "Cannot identify listener PID ${pid}"
+        exit 1
+      fi
+
+      unit=$(grep -oE '[^/]+\.service' "/proc/${pid}/cgroup" | tail -n 1 || true)
+      if [ "${unit}" != "{{ protected_service }}.service" ]; then
+        echo "Port {{ apache_port }} is still occupied by PID ${pid}, service ${unit}"
+        exit 1
+      fi
+    done
+
+    exit 0
+  args:
+    executable: /bin/bash
+  register: port_check_result
+  changed_when: false
+  retries: 5
+  delay: 2
+  until: port_check_result.rc == 0
